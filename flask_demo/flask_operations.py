@@ -1,3 +1,5 @@
+from json import dumps
+
 from flask import Flask, request, json, Response, jsonify
 from mongoengine import connect, Document, StringField, IntField, EmailField
 
@@ -11,19 +13,54 @@ class Employee(Document):
     age = IntField()
     email = EmailField()
 
+    def to_json(self):
+        return {"name": self.name,
+                "age": self.age,
+                "email": self.email}
+
+
+@app.route('/read', methods=['GET'])
+def get_records():
+
+    users = Employee.objects()
+
+    if not users:
+        return jsonify({'error': 'data not found'})
+    else:
+        all_employee = [user.to_json() for user in users]
+        return {"info": all_employee}
+
 
 @app.route('/create', methods=['POST'])
-def create_new_employee():
-    body = json.loads(request.data)
-    print(body)
-    name = body.get('name')
-    age = body.get('age')
-    email = body.get('email')
-    employee = Employee(name=name, age=age, email=email)
-    print('new employee added')
-    employee.save()
-    return {'message': 'success'}
+def create_record():
+    record = json.loads(request.data)
+    user = Employee(name=record['name'], age=record['age'], email=record['email'])
+    user.save()
+    return jsonify(user.to_json())
 
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+@app.route('/update', methods=['PUT'])
+def update_record():
+    record = json.loads(request.data)
+    users = Employee.objects(name=record['name'])
+    if not users:
+        return jsonify({'error': 'data not found'})
+    else:
+        users.update(name=record['name'], age=record['age'], email=record['email'])
+        all_employee = [user.to_json() for user in users]
+        return {"info": all_employee}
+
+
+@app.route('/delete', methods=['DELETE'])
+def delete_record():
+    record = json.loads(request.data)
+    user = Employee.objects(name=record['name'])
+    if not user:
+        return jsonify({'error': 'data not found'})
+    else:
+        user.delete()
+    return jsonify(user.to_json())
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
